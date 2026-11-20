@@ -59,10 +59,10 @@ class GeometricControl(BaseControl):
         ##########################################################################
         #### YOUR CODE STARTS HERE: set the controller gains #####################
         # Use positive-definite diagonal matrices, for example np.diag([1.0, 1.0, 1.0]).
-        self.K_x = np.zeros((3, 3))         # position gain
-        self.K_v = np.zeros((3, 3))         # velocity gain
-        self.K_R = np.zeros((3, 3))         # attitude gain
-        self.K_Omega = np.zeros((3, 3))     # angular velocity gain
+        self.K_x = np.ones((3, 3))         # position gain
+        self.K_v = np.ones((3, 3))         # velocity gain
+        self.K_R = np.diag([0.005, 0.005, 0.001])         # attitude gain
+        self.K_Omega = np.diag([0.001, 0.001, 0.0002])     # angular velocity gain
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
 
@@ -256,8 +256,18 @@ class GeometricControl(BaseControl):
         """
         ##########################################################################
         #### YOUR CODE STARTS HERE ###############################################
-        thrust = 0.0
-        target_rot = np.eye(3)
+        # thrust = 0.0
+        e_x = target_pos - cur_pos
+        e_v = target_vel - cur_vel
+        Fd = -self.K_x@e_x - self.K_v@e_v + self.m*self.g*cur_rot[:,3] + self.m*target_acc
+        thrust = Fd@cur_rot[:,3]
+        b3 = Fd/np.norm(Fd)
+        b1c = np.array([[np.cos(target_yaw)], [np.sin(target_yaw)],[0]])
+        term =  np.cross(b3,b1c)
+        b2 = term/np.norm(term)
+        b1 = np.cross(b2,b3)
+        target_rot = np.array(b1,b2,b3)
+        # target_rot = np.eye(3)
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
         return thrust, target_rot
@@ -289,6 +299,12 @@ class GeometricControl(BaseControl):
         ##########################################################################
         #### YOUR CODE STARTS HERE ###############################################
         moment = np.zeros(3)
+        e_r = 0.5*self.vee(np.transpose(target_rot)@cur_rot - np.transpose(cur_rot)@target_rot)
+        e_omega = cur_ang_vel
+        moment = (-self.K_R)@e_r + (-self.K_Omega)@cur_ang_vel + np.cross(cur_ang_vel, self.J@cur_ang_vel)
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
         return moment
+
+    def vee(self,S):
+        return np.array([S[2, 1], S[0, 2], S[1, 0]])
