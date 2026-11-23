@@ -61,7 +61,7 @@ class GeometricControl(BaseControl):
         # Use positive-definite diagonal matrices, for example np.diag([1.0, 1.0, 1.0]).
         # self.K_x = np.diag((0, 0, 0))         # position gain
         # self.K_v = np.diag((0, 0, 0))         # velocity gain
-        self.K_x = np.diag((0.24, 0.24, 0.24))         # position gain
+        self.K_x = np.diag((0.12, 0.12, 0.12))         # position gain
         self.K_v = np.diag((0.24, 0.24, 0.24))         # velocity gain
         self.K_R = np.diag([0.005, 0.005, 0.001])         # attitude gain
         self.K_Omega = np.diag([0.001, 0.001, 0.0002])     # angular velocity gain
