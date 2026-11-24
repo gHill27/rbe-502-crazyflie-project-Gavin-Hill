@@ -7,7 +7,14 @@ def basis_matrix_M(t):
     
     return M
 
-
+def eval_matrix(t):
+    """Used for trajectory evaluation (pos, vel, acc, jerk)."""
+    M = np.array([[1,   t,    t**2,   t**3,       t**4,      t**5],       # p(t)
+                  [0,   1,    2*t,    3*t**2,     4*t**3,    5*t**4],     # v(t) 
+                  [0,   0,    2,      6*t,        12*t**2,   20*t**3],    # a(t)
+                  [0,   0,    0,      6,          24*t,      60*t**2]])   # j(t)
+    return M
+    
 def p2p_motion(t, tf, start_state, end_state):
     '''
     Trajectory when in point to point motion
@@ -28,7 +35,7 @@ def p2p_motion(t, tf, start_state, end_state):
         
     # Solve for coefficients
     coeffs = np.linalg.solve(A, b) # 6xN
-    cur_state = basis_matrix_M(t) @ coeffs # 3xN
+    cur_state = eval_matrix(t) @ coeffs # 4xN
 
     return cur_state
 
@@ -106,24 +113,26 @@ def diamond(t, tfinal=8):
         yz_pos = yz_state[0]  # [y, z]
         yz_vel = yz_state[1]  # [vy, vz]
         yz_acc = yz_state[2]  # [ay, az]
+        yz_jerk = yz_state[3]  # [jy, jz]
         
     else:
         # Hold at final position
-        x_state = x_end_state.flatten()
+        x_state = np.array([ux, 0.0, 0.0, 0.0])
         yz_pos = waypoints_pos[-1]
         yz_vel = np.array([0.0, 0.0])
         yz_acc = np.array([0.0, 0.0])
-        
+        yz_jerk = np.array([0.0, 0.0])
     
     pos = np.array([x_state[0], yz_pos[0], yz_pos[1]])
     vel = np.array([x_state[1], yz_vel[0], yz_vel[1]])
     acc = np.array([x_state[2], yz_acc[0], yz_acc[1]])
+    jerk = np.array([x_state[3], yz_jerk[0], yz_jerk[1]])
     
     desired_state = {
         'pos': pos,
         'vel': vel,
         'acc': acc,
-        'jerk': np.array([0, 0, 0]),
+        'jerk': jerk,
         'yaw': 0,
         'yawdot': 0
     }

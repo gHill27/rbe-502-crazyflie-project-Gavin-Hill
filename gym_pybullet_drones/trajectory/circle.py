@@ -58,14 +58,16 @@ class PolynomialTrajectory:
         else:
             return 0.0
     
-    def _getM(self, t):
+    def _getM(self, t,eval_derv=None):
         '''
         Get the M matrix at time t
         @Parms:
             t: time
         '''
-        M = np.zeros((self.derivative + 1, self.degree + 1))
-        for i in range(self.derivative + 1):
+        if eval_derv is None:
+            eval_derv = self.derivative
+        M = np.zeros((eval_derv + 1, self.degree + 1))
+        for i in range(eval_derv + 1):
             for j in range(self.degree + 1):
                 M[i][j] = self._getMij(t, i, j)
         return M
@@ -77,8 +79,8 @@ class PolynomialTrajectory:
         if self.initial_time is None or self.final_time is None:
             raise ValueError("Initial and Final times must be provided")
         
-        M_0 = self._getM(self.initial_time)
-        M_f = self._getM(self.final_time)
+        M_0 = self._getM(self.initial_time, self.derivative)
+        M_f = self._getM(self.final_time, self.derivative)
 
         return np.vstack((M_0, M_f))
     
@@ -104,7 +106,7 @@ class PolynomialTrajectory:
         except np.linalg.LinAlgError:
             raise ValueError("Matrix A is singular, cannot solve for coefficients")
     
-    def getPoly(self, t) -> np.ndarray:
+    def getPoly(self, t,eval_derv=3) -> np.ndarray:
         '''
         Get the polynomial and all its derivatives at time t for all dimensions
         @Parms:
@@ -122,8 +124,7 @@ class PolynomialTrajectory:
         # Type assertion for Pylance
         assert self.a is not None, "Coefficients could not be computed"
         
-        Mt = self._getM(t)
-        # Mt @ self.a gives shape (derivative+1, n_dims)
+        Mt = self._getM(t, eval_derv)
         poly_t = Mt @ self.a
         
         return poly_t
@@ -133,12 +134,16 @@ def get_circle_state(theta_traj, z_d):
     theta = theta_traj[0][0]  # Extract angle
     theta_w = theta_traj[1][0]      # Extract angular velocity
     theta_acc = theta_traj[2][0]    # Extract angular acceleration
+    theta_jerk = theta_traj[3][0]   # Angular jerk
     pos = np.array([np.cos(theta), np.sin(theta), z_d])
     vel = np.array([-theta_w * np.sin(theta), theta_w * np.cos(theta), 0.0])
     acc = np.array([-theta_acc * np.sin(theta) - theta_w**2 * np.cos(theta),
                             theta_acc * np.cos(theta) - theta_w**2 * np.sin(theta),
                             0.0])
-    return pos, vel, acc
+    jerk = np.array([-theta_jerk * np.sin(theta) - 3 * theta_acc * theta_w * np.cos(theta) + theta_w**3 * np.sin(theta),
+                      theta_jerk * np.cos(theta) - 3 * theta_acc * theta_w * np.sin(theta) - theta_w**3 * np.cos(theta),
+                      0.0])
+    return pos, vel, acc, jerk
 
 #############CIRCLE PARAMETERS(EDIT ME)#############
 t_total = 15
@@ -216,6 +221,7 @@ def circle(t, tf=8):
     pos = np.zeros(3)
     vel = np.zeros(3)
     acc = np.zeros(3)
+    jerk = np.zeros(3)
     
     #Get trajectory
     if( t <= climb_up_time_duration ):
@@ -224,26 +230,29 @@ def circle(t, tf=8):
         pos = poly_t[0]
         vel = poly_t[1]
         acc = poly_t[2]
+        jerk = poly_t[3]
     elif( t <= circle_time_duration ):
         # get w
         poly_theta = theta_traj.getPoly(t)
-        pos, vel, acc = get_circle_state(poly_theta, z_d)
+        pos, vel, acc, jerk = get_circle_state(poly_theta, z_d)
     elif( t <= climb_down_time_duration ):
         poly_t = climb_down_traj.getPoly(t)
         pos = poly_t[0]
         vel = poly_t[1]
         acc = poly_t[2]
+        jerk = poly_t[3]
     else:
         # Hover at final position
         pos = climb_up_initial[0]
         vel = climb_up_initial[1]
         acc = climb_up_initial[2]
+        jerk = np.zeros(3)
 
     desired_state = {
         'pos': pos,
         'vel': vel,
         'acc': acc,
-        'jerk': np.array([0, 0, 0]),
+        'jerk': jerk,
         'yaw': 0,
         'yawdot': 0
     }

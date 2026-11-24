@@ -141,7 +141,9 @@ def run(traj=DEFAULT_TRAJ,
                                                  target_pos=des['pos'],
                                                  target_vel=des['vel'],
                                                  target_acc=des['acc'],
-                                                 target_yaw=des['yaw']
+                                                 target_yaw=des['yaw'],
+                                                 target_jerk=des['jerk'],       # <--- ADD THIS
+                                                 target_yaw_dot=des['yawdot']   # <--- ADD THIS
                                                  )
         logger.log(t, obs[0], des, info, rpm)
         obs, _, _, _, _ = env.step(rpm.reshape(1, 4))
