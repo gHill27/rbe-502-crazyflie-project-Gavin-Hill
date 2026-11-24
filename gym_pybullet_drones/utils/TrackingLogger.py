@@ -185,6 +185,38 @@ class TrackingLogger:
         axs[0].set_title(f'Control inputs, {title}')
         axs[-1].set_xlabel('t [s]')
         figs['control'] = fig
+        
+        # #### 6. Desired Thrust Ratio (f_d / mg) ####################################
+        fig, ax = plt.subplots(figsize=(7, 4))
+        
+        g = 9.8
+        m = 0.027  # Mass from trajectory evaluation script
+        mg = m * g
+        E3 = np.array([0.0, 0.0, 1.0])
+        
+        # Reconstruct f_d ratio using tracked desired acceleration
+        fd_ratio = np.linalg.norm(a['acc_d'] / g + E3, axis=1)
+        
+        ax.plot(t, fd_ratio, label=f'Desired thrust (peak {fd_ratio.max():.2f} mg)')
+        
+        HIGH, LOW = 2.25, 1.5
+        ax.axhline(HIGH, color='r', ls='--', label=r'$f_{max}=2.25\,mg$')
+        ax.axhline(LOW, color='gray', ls=':', label=r'$1.5\,mg$')
+        
+        ax.set_ylim(0, max(HIGH + 0.6, fd_ratio.max() + 0.2))
+        ax.set_xlabel('t [s]')
+        ax.set_ylabel(r'$f_d / mg$')
+        ax.grid(True, alpha=0.4)
+        ax.legend(fontsize=8, loc='upper right')
+        
+        # Secondary axis for force in Newtons
+        sec = ax.secondary_yaxis('right', functions=(lambda r: r * mg, lambda f: f / mg))
+        sec.set_ylabel(r'$f_d$ [N]')
+        
+        ax.set_title(f'Desired Thrust Profile, {title}')
+        figs['fd_ratio'] = fig
+        
+
 
         for fig in figs.values():
             fig.tight_layout()
