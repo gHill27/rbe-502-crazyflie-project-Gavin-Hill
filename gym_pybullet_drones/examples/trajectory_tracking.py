@@ -33,7 +33,7 @@ from gym_pybullet_drones.trajectory import circle, diamond
 #### Trajectories: name -> (function of (t, duration), default duration [s]) ####
 TRAJECTORIES = {
     'circle': (circle.circle, 15.0),
-    'diamond': (diamond.diamond, 8.0),
+    'diamond': (diamond.diamond, 3.0),
 }
 
 #### Simulation settings (do not change; used for grading) ######################

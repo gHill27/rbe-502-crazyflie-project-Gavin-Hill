@@ -62,8 +62,10 @@ def solve_T(acc_fn, target, setup=None, lo=1.0, hi=60.0):
 
 def pick_durations(acc_fn, T0, setup=None):
     """T0 plus two shorter durations, the shortest peaking just under HIGH."""
-    T_mid = np.ceil(solve_T(acc_fn, 1.7, setup) * 10) / 10
-    T_short = np.ceil(solve_T(acc_fn, 2.1, setup) * 10) / 10
+    # T_mid = np.ceil(solve_T(acc_fn, 1.7, setup) * 10) / 10
+    # T_short = np.ceil(solve_T(acc_fn, 2.1, setup) * 10) / 10
+    T_mid = 3.5
+    T_short = 3
     return [T0, T_mid, T_short]
 
 
@@ -89,9 +91,5 @@ def plot_fd(acc_fn, durations, name, setup=None):
 
 
 if __name__ == '__main__':
-    circ_T = pick_durations(circle_acc, 15, set_circle_duration)
-    diam_T = pick_durations(diamond_acc, 8)
-    print('Circle durations: ', circ_T)
-    print('Diamond durations:', diam_T)
-    plot_fd(circle_acc, circ_T, 'circle', setup=set_circle_duration)
-    plot_fd(diamond_acc, diam_T, 'diamond')
+    plot_fd(circle_acc,  [15, 9, 10], 'circle', setup=set_circle_duration)
+    plot_fd(diamond_acc, [8, 3.5, 3.0],  'diamond')

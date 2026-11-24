@@ -141,9 +141,10 @@ def get_circle_state(theta_traj, z_d):
     return pos, vel, acc
 
 #############CIRCLE PARAMETERS(EDIT ME)#############
-climb_up_time_duration = 5.0  # Duration to climb up before starting the circle
-circle_time_duration = 10.0  # Duration to complete one circle
-climb_down_time_duration = 15.0  # Duration to climb down after completing the circle
+t_total = 9
+climb_up_time_duration = t_total/3  # Duration to climb up before starting the circle
+circle_time_duration = t_total*2/3  # Duration to complete one circle
+climb_down_time_duration = t_total  # Duration to climb down after completing the circle
 
 z_d = 1.0  # Desired altitude during the circle
 R = 1.0  # Radius of the circle
@@ -171,19 +172,19 @@ climb_down_final = climb_up_initial
 
 #Trajectory Generators
 climb_up_traj = PolynomialTrajectory(
-    to=0.0, tf=5.0,
+    to=0.0, tf=climb_up_time_duration,
     initial_state=climb_up_initial,
     final_state=climb_up_final
 )
 
 
 theta_traj = PolynomialTrajectory(
-    to=5.0, tf=10.0,
+    to=climb_up_time_duration, tf=circle_time_duration,
     initial_state=theta_initial,
     final_state=theta_final
 )
 climb_down_traj = PolynomialTrajectory(
-    to=10.0, tf=15.0,
+    to=circle_time_duration, tf=climb_down_time_duration,
     initial_state=climb_down_initial,
     final_state=climb_down_final
 )
