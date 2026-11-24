@@ -61,10 +61,10 @@ class GeometricControl(BaseControl):
         # Use positive-definite diagonal matrices, for example np.diag([1.0, 1.0, 1.0]).
         # self.K_x = np.diag((0, 0, 0))         # position gain
         # self.K_v = np.diag((0, 0, 0))         # velocity gain
-        self.K_x = np.diag((0.12, 0.12, 0.12))         # position gain
-        self.K_v = np.diag((0.24, 0.24, 0.24))         # velocity gain
+        self.K_x = np.diag((0.3, 0.3, 0.3))         # position gain
+        self.K_v = np.diag((0.4, 0.4, 0.4))         # velocity gain
         self.K_R = np.diag([0.005, 0.005, 0.001])         # attitude gain
-        self.K_Omega = np.diag([0.001, 0.001, 0.0002])     # angular velocity gain
+        self.K_Omega = np.diag([0.0005, 0.0005, 0.0002])     # angular velocity gain
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
 
@@ -87,6 +87,8 @@ class GeometricControl(BaseControl):
                                 target_pos,
                                 target_vel=np.zeros(3),
                                 target_acc=np.zeros(3),
+                                target_jerk=np.zeros(3), 
+                                target_yaw_dot=0.0,        
                                 target_yaw=0.0
                                 ):
         """Computes the rotor speeds from the state vector returned by the environment.
@@ -118,14 +120,18 @@ class GeometricControl(BaseControl):
                                    target_pos=target_pos,
                                    target_vel=target_vel,
                                    target_acc=target_acc,
-                                   target_yaw=target_yaw
-                                   )
+                                   target_yaw=target_yaw,
+                                   target_jerk=target_jerk,     
+                                   target_yaw_dot=target_yaw_dot)
+                                   
 
     ################################################################################
 
     def computeAttitudeControlFromState(self,
                                         state,
                                         thrust,
+                                        jerk,
+                                        yaw_dot,
                                         target_rot=np.eye(3)
                                         ):
         """Runs only the attitude controller and the control allocation (hover test).
@@ -154,7 +160,7 @@ class GeometricControl(BaseControl):
         """
         self.control_counter += 1
         _, _, R, Omega = self._convertState(state[0:3], state[3:7], state[10:13], state[13:16])
-        return self._innerLoopAndAllocation(R, Omega, float(thrust), np.asarray(target_rot, dtype=float))
+        return self._innerLoopAndAllocation(R, Omega, float(thrust), jerk, yaw_dot, np.asarray(target_rot, dtype=float))
 
     ################################################################################
 
@@ -166,7 +172,9 @@ class GeometricControl(BaseControl):
                        target_pos,
                        target_vel,
                        target_acc,
-                       target_yaw
+                       target_yaw,
+                       target_jerk=np.zeros(3), 
+                       target_yaw_dot=0.0
                        ):
         """Runs the position and attitude controllers and the control allocation."""
         self.control_counter += 1
@@ -184,9 +192,8 @@ class GeometricControl(BaseControl):
             raise ValueError("_positionControl must return the desired rotation matrix as a (3, 3) array.")
         thrust = float(np.squeeze(thrust))
         target_rot = np.asarray(target_rot, dtype=float)
-
         #### Inner loop and control allocation ###################################
-        return self._innerLoopAndAllocation(R, Omega, thrust, target_rot)
+        return self._innerLoopAndAllocation(R, Omega, thrust, target_jerk, target_yaw_dot, target_rot)
 
     ################################################################################
 
@@ -202,10 +209,11 @@ class GeometricControl(BaseControl):
 
     ################################################################################
 
-    def _innerLoopAndAllocation(self, R, Omega, thrust, target_rot):
+    def _innerLoopAndAllocation(self, R, Omega, thrust, jerk, yaw_dot, target_rot):
         """Runs the attitude controller and converts the thrust and moment into rotor speeds."""
         #### Inner loop: moment ##################################################
-        moment = self._attitudeControl(R, Omega, target_rot)
+        Omega_des = self._desiredOmega(target_rot, jerk, yaw_dot)
+        moment = self._attitudeControl(R, Omega, target_rot, Omega_des)
         if np.size(moment) != 3:
             raise ValueError("_attitudeControl must return the moment as a (3,) array.")
         moment = np.asarray(moment, dtype=float).reshape(3)
@@ -262,6 +270,7 @@ class GeometricControl(BaseControl):
         e_x = cur_pos - target_pos 
         e_v = cur_vel - target_vel
         Fd = -self.K_x@e_x - self.K_v@e_v + self.m*self.g*self.e3 + self.m*target_acc
+        self.F_d = Fd  
         thrust = Fd@cur_rot@self.e3
         b3 = Fd/np.linalg.norm(Fd)
         b1c = np.array([np.cos(target_yaw), np.sin(target_yaw),0])
@@ -272,7 +281,7 @@ class GeometricControl(BaseControl):
         # target_rot = np.eye(3)
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
-        return thrust, target_rot, Fd
+        return thrust, target_rot
 
     ################################################################################
 
@@ -302,23 +311,21 @@ class GeometricControl(BaseControl):
         ##########################################################################
         #### YOUR CODE STARTS HERE ###############################################
         e_r = 0.5 * vee(target_rot.T @ cur_rot - cur_rot.T @ target_rot)
-        w = cur_rot.T @ target_rot @ target_omega            # R^T R_d Omega_d
-        e_omega = cur_ang_vel - w
+        e_omega = cur_ang_vel - np.transpose(cur_rot) @ target_rot @ target_omega
         moment = (-self.K_R @ e_r - self.K_Omega @ e_omega
                   + np.cross(cur_ang_vel, self.J @ cur_ang_vel)
-                  - self.J @ np.cross(cur_ang_vel, w))       # Omega_d_dot = 0
+                  - self.J@(hat(cur_ang_vel)@np.transpose(cur_rot)@target_rot@target_omega))
         return moment
         #### YOUR CODE ENDS HERE #################################################
         ##########################################################################
-        return moment
 
-    def _desiredOmega(self, R_d, F_d, jerk, yaw, yawdot):
+    def _desiredOmega(self, R_d, jerk, yawdot):
         """Omega_d from differential flatness, expressed in the desired body frame."""
         b1, b2, b3 = R_d[:, 0], R_d[:, 1], R_d[:, 2]
-        f = np.linalg.norm(F_d)
-        W1 = -self.m * (jerk @ b2) / f
-        W2 =  self.m * (jerk @ b1) / f
-        b1c = np.array([np.cos(yaw), np.sin(yaw), 0.0])
-        e2c = np.array([-np.sin(yaw), np.cos(yaw), 0.0])
-        W3 = (W1 * (b3 @ b1c) + yawdot * (b2 @ e2c)) / (b1 @ b1c)
-        return np.array([W1, W2, W3])
+        f = np.linalg.norm(self.F_d)
+        if f < 1e-6: # safety check against dividing by zero in freefall
+            return np.zeros(3)
+        o1 = -self.m/f*(np.transpose(b2)@jerk)
+        o2 = self.m/f*(np.transpose(b1)@jerk)
+        o3 = yawdot*(np.array([0,0,1])@b3)
+        return np.array([o1,o2,o3])

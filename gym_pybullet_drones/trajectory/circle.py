@@ -141,7 +141,7 @@ def get_circle_state(theta_traj, z_d):
     return pos, vel, acc
 
 #############CIRCLE PARAMETERS(EDIT ME)#############
-t_total = 9
+t_total = 15
 climb_up_time_duration = t_total/3  # Duration to climb up before starting the circle
 circle_time_duration = t_total*2/3  # Duration to complete one circle
 climb_down_time_duration = t_total  # Duration to climb down after completing the circle

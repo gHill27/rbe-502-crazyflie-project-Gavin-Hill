@@ -25,7 +25,7 @@ import pybullet as p
 
 from gym_pybullet_drones.utils.enums import DroneModel, Physics
 from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
-from gym_pybullet_drones.control.GeometricControl import GeometricControl
+from gym_pybullet_drones.control.GeometricControl_FF import GeometricControl
 from gym_pybullet_drones.utils.TrackingLogger import TrackingLogger
 from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.trajectory import circle, diamond
